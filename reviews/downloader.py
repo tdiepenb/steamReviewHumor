@@ -3,15 +3,13 @@ import json
 import os
 import logging
 
-APP_IDS: list[int] = [2807960]
-REVIEW_LANGUAGE: str = "french"
-NUM_REVIEWS_PER_APP: int | None = None
-
-
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
-def download_steam_reviews(app_ids: list[int]) -> dict | None:
+def download_steam_reviews(
+    app_ids: list[int], review_language: str, num_reviews_per_app: int | None
+) -> dict | None:
     logger.info("Starting download of Steam reviews for app IDs: %s", app_ids)
     os.makedirs("data", exist_ok=True)
     logger.info("Created data directory if it did not exist.")
@@ -25,7 +23,11 @@ def download_steam_reviews(app_ids: list[int]) -> dict | None:
             json.dump(app_info, f, indent=2, ensure_ascii=False)
 
         logger.info("Fetching reviews for app ID: %d", app_id)
-        reviews = fetch_reviews_for_app(app_id, num_reviews=NUM_REVIEWS_PER_APP)
+        reviews = fetch_reviews_for_app(
+            app_id=app_id,
+            review_language=review_language,
+            num_reviews=num_reviews_per_app,
+        )
 
         logger.info("Saving reviews to file for app ID: %d", app_id)
         filename = f"data/app_{app_id}_reviews.json"
@@ -35,7 +37,9 @@ def download_steam_reviews(app_ids: list[int]) -> dict | None:
         logger.info("Downloaded reviews for app %d to %s", app_id, filename)
 
 
-def fetch_reviews_for_app(app_id: int, num_reviews: int | None = None) -> dict:
+def fetch_reviews_for_app(
+    app_id: int, review_language: str, num_reviews: int | None = None
+) -> dict:
     url = "https://store.steampowered.com/appreviews/"
     all_reviews = []
     cursor = "*"
@@ -52,8 +56,8 @@ def fetch_reviews_for_app(app_id: int, num_reviews: int | None = None) -> dict:
 
         params = {
             "json": 1,
-            "filter": "recent",
-            "language": REVIEW_LANGUAGE,
+            "filter": "all",
+            "language": review_language,
             "day_range": 9223372036854775807,
             "review_type": "all",
             "purchase_type": "all",
@@ -112,17 +116,3 @@ def read_reviews_from_file(filepath: str) -> dict:
 def read_app_info_from_file(filepath: str) -> dict:
     with open(filepath, "r", encoding="utf-8") as f:
         return json.load(f)
-
-
-def main():
-    logging.basicConfig(level=logging.INFO)
-    download_steam_reviews(APP_IDS)
-
-    reviews = read_reviews_from_file("data/app_2807960_reviews.json")
-    app_info = read_app_info_from_file("data/app_2807960_info.json")
-    logger.warning("App Info: %s", json.dumps(app_info, indent=4, sort_keys=True))
-    logger.warning("Number of Reviews: %d", len(reviews.get("reviews", [])))
-
-
-if __name__ == "__main__":
-    main()
