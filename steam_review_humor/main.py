@@ -1,11 +1,7 @@
 import logging
-import config
+import steam_review_humor.config as config
 import json
-from reviews.downloader import (
-    download_steam_reviews,
-    read_app_info_from_file,
-    read_reviews_from_file,
-)
+from steam_review_humor.reviews.downloader import download_steam_reviews
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,11 +19,6 @@ def main():
         review_language=config.REVIEW_LANGUAGE,
         num_reviews_per_app=config.NUM_REVIEWS_PER_APP,
     )
-
-    # reviews = read_reviews_from_file("data/app_2807960_reviews.json")
-    # app_info = read_app_info_from_file("data/app_2807960_info.json")
-    # logger.warning("App Info: %s", json.dumps(app_info, indent=4, sort_keys=True))
-    # logger.warning("Number of Reviews: %d", len(reviews.get("reviews", [])))
 
 
 if __name__ == "__main__":
