@@ -5,7 +5,7 @@ from datetime import datetime
 from steam_review_humor.reviews.downloader import download_steam_reviews
 
 # Create log directory if it doesn't exist
-log_dir = "log"
+log_dir = "log/downloader"
 os.makedirs(log_dir, exist_ok=True)
 
 # Create timestamped log filename

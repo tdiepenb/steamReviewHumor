@@ -213,6 +213,7 @@ def fetch_app_info(app_id: int) -> dict:
         data = response.json()
         app_data = data.get(str(app_id), {})
         if app_data.get("success"):
+            logger.info(f"---Successfully fetched app info for app ID: {app_id} with name: {app_data.get('data', {}).get('name', 'Unknown')}")
             return app_data.get("data", {})
     except Exception as e:
         logger.error(f"Failed to fetch app info: {e}")
