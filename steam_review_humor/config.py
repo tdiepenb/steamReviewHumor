@@ -33,6 +33,12 @@ REVIEW_LANGUAGE: str = "english"
 # Number of reviews to download per app (None for all available reviews)
 NUM_REVIEWS_PER_APP: int | None = 50000
 
+# Disable early stopping for the 'recent' filter portion of the download during the Hybrid strategy when no new reviews are found in a batch. If True, the downloader will continue fetching until the portion of recent reviews are downloaded or the API limit is reached. If False, the downloader will stop early after a set number of retries when no new reviews are found. Set this to true for older games as the 'all' filters results may overlap significantly with 'recent' reviews.
+DISABLE_EARLY_STOPPING: bool = True
+
+# Number of retries for when no new reviews are found before early stopping
+NUM_RETRY_BEFORE_EARLY_STOPPING: int = 10
+
 # Percentage of the total download limit to dedicate to 'all'. The remainder will be used for 'recent'. 0.6 means 60% high/mid votes, 40% recent/zero votes. Will be ignored if NUM_REVIEWS_PER_APP is None.
 HIGH_SCORE_RATIO: float = 0.5
 

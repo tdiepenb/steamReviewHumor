@@ -1,21 +1,26 @@
 import json
 import logging
 import os
+from datetime import datetime
 
 import httpx
-from datetime import datetime
 
 from steam_review_humor.config import (
     API_TIMEOUT,
     APP_IDS,
     DATA_DIR,
+    DISABLE_EARLY_STOPPING,
     HIGH_SCORE_RATIO,
+    NUM_RETRY_BEFORE_EARLY_STOPPING,
     NUM_REVIEWS_PER_APP,
     REVIEW_LANGUAGE,
 )
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+
+# Suppress httpx and httpcore logs unless explicitly needed
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
 def download_steam_reviews() -> None:
@@ -24,6 +29,8 @@ def download_steam_reviews() -> None:
     logger.info("Review Language: %s", REVIEW_LANGUAGE)
     logger.info("Number of Reviews per App: %s", NUM_REVIEWS_PER_APP)
     logger.info("High Score Ratio: %.2f", HIGH_SCORE_RATIO)
+    logger.info("Disable Early Stopping: %s", DISABLE_EARLY_STOPPING)
+    logger.info("Number of Retries before Early Stopping: %d", NUM_RETRY_BEFORE_EARLY_STOPPING)
     logger.info("API Timeout: %.2f seconds", API_TIMEOUT)
     logger.info("Data Directory: %s/raw", DATA_DIR)
 
@@ -60,15 +67,6 @@ def fetch_reviews_for_app(
 ) -> dict:
     """
     Fetches reviews for a given Steam app ID. Uses a hybrid strategy if num_reviews is set. Else, downloads all reviews using 'recent' filter.
-
-    :param app_id: The Steam App ID to fetch reviews for.
-    :type app_id: int
-    :param review_language: The language of the reviews to fetch.
-    :type review_language: str
-    :param num_reviews: The number of reviews to fetch. If None, fetches all available reviews.
-    :type num_reviews: int | None
-    :return: A dictionary containing the fetched reviews.
-    :rtype: dict[Any, Any]
     """
     logger.info("--Fetching reviews for app ID: %d", app_id)
 
@@ -114,33 +112,26 @@ def fetch_reviews_for_app(
                 language=review_language,
                 limit=limit_recent,
                 unique_store=unique_reviews,
+                disable_early_stopping=DISABLE_EARLY_STOPPING,
             )
 
     return {"reviews": list(unique_reviews.values())}
 
 
 def fetch_batch(
-    app_id: int, filter_type: str, language: str, limit: int | None, unique_store: dict
+    app_id: int, filter_type: str, language: str, limit: int | None, unique_store: dict, disable_early_stopping: bool = False
 ) -> None:
     """
     Helper function to handle pagination and deduplication.
     Updates unique_store in-place.
-
-    :param app_id: The Steam App ID to fetch reviews for.
-    :type app_id: int
-    :param filter_type: The type of filter to apply when fetching reviews (e.g., "recent", "all").
-    :type filter_type: str
-    :param language: The language of the reviews to fetch.
-    :type language: str
-    :param limit: The maximum number of reviews to fetch in this batch.
-    :type limit: int | None
-    :param unique_store: A dictionary to store unique reviews for deduplication.
-    :type unique_store: dict
     """
 
     url = f"https://store.steampowered.com/appreviews/{app_id}"
     cursor = "*"
     fetched_in_batch = 0
+    retry_count = 0
+
+    logger.info(f"---Starting batch fetch for filter '{filter_type}' with limit={limit}")
 
     while limit is None or fetched_in_batch < limit:
         num_per_page = 100 if limit is None else min(100, limit - fetched_in_batch)
@@ -151,12 +142,12 @@ def fetch_batch(
             "language": language,
             "review_type": "all",
             "purchase_type": "all",
-            "num_per_page": num_per_page,
+            "num_per_page": str(num_per_page),
             "cursor": cursor,
             "filter_offtopic_activity": 0,
         }
 
-        # when using "all" filter, set day_range to 365 to get recent high-score reviews older than default 30 days
+        # when using "all" filter, set day_range to 365 (max according to Steam API) to get recent high-score reviews older than default 30 days
         if filter_type == "all":
             params["day_range"] = "365"
 
@@ -171,13 +162,13 @@ def fetch_batch(
         reviews = data.get("reviews", [])
         new_cursor = data.get("cursor", "")
 
-        if not reviews:
-            logger.info(
-                f"---No more reviews found for filter '{filter_type}'. Stopping."
-            )
-            break
+        # if not reviews:
+        #     logger.info(
+        #         f"---No more reviews found for filter '{filter_type}'. Stopping."
+        #     )
+        #     break
 
-        logger.info("---Running deduplication for Batch")
+        logger.debug("---Running deduplication for Batch")
         batch_new_count = 0
         for r in reviews:
             rid = r.get("recommendationid")
@@ -186,9 +177,14 @@ def fetch_batch(
                 unique_store[rid] = r
                 batch_new_count += 1
 
-        if len(reviews) > 0 and batch_new_count == 0:
-            logger.info(f"---Batch returned {len(reviews)} items, but ALL were duplicates. Stopping early.")
-            break
+        if len(reviews) > 0 and batch_new_count == 0 and not disable_early_stopping:
+            logger.info(f"---Batch returned {len(reviews)} items, but ALL were duplicates. Retry {retry_count}/{NUM_RETRY_BEFORE_EARLY_STOPPING}.")
+            retry_count += 1
+            if retry_count >= NUM_RETRY_BEFORE_EARLY_STOPPING:
+                logger.info(f"---Stopping early.")
+                break
+        else:
+            retry_count = 0  # reset retry count on successful new data
 
         fetched_in_batch += len(reviews)
 
@@ -200,18 +196,13 @@ def fetch_batch(
         cursor = new_cursor
 
         logger.info(
-            f"---Batch ({filter_type}): Processed {len(reviews)} items. ({batch_new_count} new unique)."
+            f"---Batch ({filter_type}): Processed {len(reviews):03d} items. ({batch_new_count:03d} new unique). Total unique so far: {len(unique_store)}"
         )
 
 
 def fetch_app_info(app_id: int) -> dict:
     """
     Sends a request to the Steam Store API to fetch information about the app.
-
-    :param app_id: The Steam App ID for which to fetch information.
-    :type app_id: int
-    :return: The app information as a dictionary.
-    :rtype: dict[Any, Any]
     """
     logger.info("--Fetching app info for app ID: %d", app_id)
     url = f"https://store.steampowered.com/api/appdetails"

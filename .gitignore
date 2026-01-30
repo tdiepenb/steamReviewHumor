@@ -9,7 +9,9 @@ wheels/
 # Virtual environments
 .venv
 
-# data directory
+# directories
 data/
+log/
+
 
 .env
