@@ -1,0 +1,27 @@
+{
+  "files.watcherExclude": {
+    "**/uv.lock": true,
+    "**/.venv/**": true,
+    "**/.uv/**": true,
+    "**/__pycache__/**": true,
+    "**/.mypy_cache/**": true,
+    "**/.ruff_cache/**": true
+  },
+  "files.exclude": {
+    "**/.venv": true,
+    "**/.uv": true
+  },
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit"
+    },
+    "editor.wordWrap": "bounded",
+    "editor.wordWrapColumn": 100,
+    "editor.rulers": [100]
+  },
+  "isort.args":["--profile", "black"],
+  "editor.formatOnSave": true,
+  "python.analysis.typeCheckingMode": "standard"
+}
