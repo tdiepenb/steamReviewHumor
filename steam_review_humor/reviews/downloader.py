@@ -1,54 +1,58 @@
-import httpx
 import json
-import os
 import logging
-from steam_review_humor.config import HIGH_SCORE_RATIO, API_TIMEOUT
+import os
+
+import httpx
+from datetime import datetime
+
+from steam_review_humor.config import (
+    API_TIMEOUT,
+    APP_IDS,
+    DATA_DIR,
+    HIGH_SCORE_RATIO,
+    NUM_REVIEWS_PER_APP,
+    REVIEW_LANGUAGE,
+)
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-def download_steam_reviews(
-    app_ids: list[int], review_language: str, num_reviews_per_app: int | None
-) -> None:
-    """
-    Downloads Steam reviews and App Info for the specified app IDs and saves them to JSON files.
+def download_steam_reviews() -> None:
+    logger.info("Starting Steam Review Downloader with the following configuration:")
+    logger.info("App IDs: %s", APP_IDS)
+    logger.info("Review Language: %s", REVIEW_LANGUAGE)
+    logger.info("Number of Reviews per App: %s", NUM_REVIEWS_PER_APP)
+    logger.info("High Score Ratio: %.2f", HIGH_SCORE_RATIO)
+    logger.info("API Timeout: %.2f seconds", API_TIMEOUT)
+    logger.info("Data Directory: %s/raw", DATA_DIR)
 
-    :param app_ids: List of Steam App IDs to download reviews for.
-    :type app_ids: list[int]
-    :param review_language: Language of the reviews to download.
-    :type review_language: str
-    :param num_reviews_per_app: Number of reviews to download per app. If None, downloads all available reviews.
-    :type num_reviews_per_app: int | None
-    """
-    logger.info("-Starting download of Steam reviews for app IDs: %s", app_ids)
-    os.makedirs("data", exist_ok=True)
+    os.makedirs(f"{DATA_DIR}/raw", exist_ok=True)
 
-    for app_id in app_ids:
+    for app_id in APP_IDS:
         # Get App Info for app_id
-        app_info = fetch_app_info(app_id)
-
-        with open(f"data/app_{app_id}_info.json", "w", encoding="utf-8") as f:
-            json.dump(app_info, f, indent=2, ensure_ascii=False)
+        app_data = fetch_app_info(app_id)
 
         # Fetch Reviews for app_id
-        reviews = fetch_reviews_for_app(
+        reviews_data = fetch_reviews_for_app(
             app_id=app_id,
-            review_language=review_language,
-            num_reviews=num_reviews_per_app,
+            review_language=REVIEW_LANGUAGE,
+            num_reviews=NUM_REVIEWS_PER_APP,
         )
 
-        logger.info("-Saving reviews to file for app ID: %d", app_id)
-        filename = f"data/app_{app_id}_reviews.json"
+        app_data["reviews"] = reviews_data["reviews"]
+        app_data["downloaded_at"] = datetime.now().isoformat()
+        app_data["review_count_downloaded"] = len(reviews_data["reviews"])
+
+        game_title = app_data.get("name", f"App_{app_id}")
+        filename = f"{DATA_DIR}/raw/app_{app_id}.json"
+        
+        logger.info(f"-Saving complete dataset for '{game_title}' with ID {app_id} to {filename}")
+        
         with open(filename, "w", encoding="utf-8") as f:
-            json.dump(reviews, f, indent=2, ensure_ascii=False)
+            json.dump(app_data, f, indent=2, ensure_ascii=False)
 
-        logger.info(
-            "-Downloaded %d unique reviews for app %d to %s",
-            len(reviews["reviews"]),
-            app_id,
-            filename,
-        )
+        logger.info(f"-Success. Saved {len(reviews_data['reviews'])} reviews + metadata.")
 
 
 def fetch_reviews_for_app(
@@ -138,8 +142,8 @@ def fetch_batch(
     cursor = "*"
     fetched_in_batch = 0
 
-    while fetched_in_batch < limit:
-        num_per_page = min(100, limit - fetched_in_batch)
+    while limit is None or fetched_in_batch < limit:
+        num_per_page = 100 if limit is None else min(100, limit - fetched_in_batch)
 
         params = {
             "json": 1,
@@ -151,6 +155,10 @@ def fetch_batch(
             "cursor": cursor,
             "filter_offtopic_activity": 0,
         }
+
+        # when using "all" filter, set day_range to 365 to get recent high-score reviews older than default 30 days
+        if filter_type == "all":
+            params["day_range"] = "365"
 
         try:
             response = httpx.get(url, params=params, timeout=API_TIMEOUT)
@@ -177,6 +185,10 @@ def fetch_batch(
             if rid and rid not in unique_store:
                 unique_store[rid] = r
                 batch_new_count += 1
+
+        if len(reviews) > 0 and batch_new_count == 0:
+            logger.info(f"---Batch returned {len(reviews)} items, but ALL were duplicates. Stopping early.")
+            break
 
         fetched_in_batch += len(reviews)
 
