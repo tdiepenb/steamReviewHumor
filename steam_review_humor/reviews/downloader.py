@@ -38,7 +38,7 @@ def download_steam_reviews() -> None:
 
     for app_id in APP_IDS:
         # Get App Info for app_id
-        app_data = fetch_app_info(app_id)
+        app_meta_data = fetch_app_info(app_id)
 
         # Fetch Reviews for app_id
         reviews_data = fetch_reviews_for_app(
@@ -47,17 +47,20 @@ def download_steam_reviews() -> None:
             num_reviews=NUM_REVIEWS_PER_APP,
         )
 
-        app_data["reviews"] = reviews_data["reviews"]
-        app_data["downloaded_at"] = datetime.now().isoformat()
-        app_data["review_count_downloaded"] = len(reviews_data["reviews"])
+        data = {
+            "downloaded_at": datetime.now().isoformat(),
+            "review_count_downloaded": len(reviews_data["reviews"])
+        }
+        data["app_info"] = app_meta_data
+        data["reviews"] = reviews_data["reviews"]
 
-        game_title = app_data.get("name", f"App_{app_id}")
+        game_title = app_meta_data.get("name", f"App_{app_id}")
         filename = f"{DATA_DIR}/raw/app_{app_id}.json"
         
         logger.info(f"-Saving complete dataset for '{game_title}' with ID {app_id} to {filename}")
         
         with open(filename, "w", encoding="utf-8") as f:
-            json.dump(app_data, f, indent=2, ensure_ascii=False)
+            json.dump(data, f, indent=2, ensure_ascii=False)
 
         logger.info(f"-Success. Saved {len(reviews_data['reviews'])} reviews + metadata.")
 
