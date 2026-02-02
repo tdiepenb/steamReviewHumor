@@ -1,3 +1,7 @@
+###############################
+# Shared Configurations
+###############################
+
 # Root Data directory for storing data files. The files will be stored in subdirectories under this path.
 DATA_DIR: str = "data"
 
@@ -27,6 +31,12 @@ APP_IDS: list[int] = [
     1455840,  # Dorfromantik
 ]
 
+
+###############################
+# Download Configurations
+###############################
+
+
 # Language for the reviews to be downloaded. Pass "all" for all languages. Check "https://partner.steamgames.com/doc/store/localization/languages" for supported languages.
 REVIEW_LANGUAGE: str = "english"
 
@@ -42,8 +52,23 @@ NUM_RETRY_BEFORE_EARLY_STOPPING: int = 10
 # Percentage of the total download limit to dedicate to 'all'. The remainder will be used for 'recent'. 0.6 means 60% high/mid votes, 40% recent/zero votes. Will be ignored if NUM_REVIEWS_PER_APP is None.
 HIGH_SCORE_RATIO: float = 0.5
 
-# Number of days a review must exist to be considered "settled" (not too new). Reviews with 0 funny votes younger than this will be discarded.
-REVIEW_AGE_THRESHOLD_DAYS: int = 60
-
 # Timeout for API requests in seconds
 API_TIMEOUT: float = 10.0
+
+
+###############################
+# Preprocesssing Configurations
+###############################
+
+# Number of days a review must exist to be considered "settled" (not too new). Reviews with 0 funny votes younger than this will be discarded.
+REVIEW_MIN_AGE_THRESHOLD_DAYS: int = 60
+
+# Keys to keep from the app info metadata
+APP_INFO_KEYS_TO_KEEP = [
+    "name",
+    "short_description",
+    "genres",
+    "categories",
+    "metacritic",
+    "release_date",
+]
