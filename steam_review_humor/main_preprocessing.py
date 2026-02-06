@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 
 # Import the new function
-from steam_review_humor.reviews.preprocessor import preprocess_steam_data
+from steam_review_humor.reviews.preprocessing import preprocess_steam_data_to_csv
 
 # Create log directory if it doesn't exist
 log_dir = "log/preprocessing"
@@ -25,9 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    logger.info("Starting Data Preprocessing...")
-    preprocess_steam_data()
-    logger.info("Preprocessing complete.")
+    preprocess_steam_data_to_csv()
 
 
 if __name__ == "__main__":

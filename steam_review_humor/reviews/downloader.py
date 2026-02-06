@@ -24,13 +24,16 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
 def download_steam_reviews() -> None:
+    logger.info("Starting Steam Reviews Download...")
     logger.info("Starting Steam Review Downloader with the following configuration:")
     logger.info("App IDs: %s", APP_IDS)
     logger.info("Review Language: %s", REVIEW_LANGUAGE)
     logger.info("Number of Reviews per App: %s", NUM_REVIEWS_PER_APP)
     logger.info("High Score Ratio: %.2f", HIGH_SCORE_RATIO)
     logger.info("Disable Early Stopping: %s", DISABLE_EARLY_STOPPING)
-    logger.info("Number of Retries before Early Stopping: %d", NUM_RETRY_BEFORE_EARLY_STOPPING)
+    logger.info(
+        "Number of Retries before Early Stopping: %d", NUM_RETRY_BEFORE_EARLY_STOPPING
+    )
     logger.info("API Timeout: %.2f seconds", API_TIMEOUT)
     logger.info("Data Directory: %s/raw", DATA_DIR)
 
@@ -49,20 +52,25 @@ def download_steam_reviews() -> None:
 
         data = {
             "downloaded_at": datetime.now().isoformat(),
-            "review_count_downloaded": len(reviews_data["reviews"])
+            "review_count_downloaded": len(reviews_data["reviews"]),
         }
         data["app_info"] = app_meta_data
         data["reviews"] = reviews_data["reviews"]
 
         game_title = app_meta_data.get("name", f"App_{app_id}")
         filename = f"{DATA_DIR}/raw/app_{app_id}.json"
-        
-        logger.info(f"-Saving complete dataset for '{game_title}' with ID {app_id} to {filename}")
-        
+
+        logger.info(
+            f"-Saving complete dataset for '{game_title}' with ID {app_id} to {filename}"
+        )
+
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
-        logger.info(f"-Success. Saved {len(reviews_data['reviews'])} reviews + metadata.")
+        logger.info(
+            f"-Success. Saved {len(reviews_data['reviews'])} reviews + metadata."
+        )
+        logger.info("Download complete.")
 
 
 def fetch_reviews_for_app(
@@ -122,7 +130,12 @@ def fetch_reviews_for_app(
 
 
 def fetch_batch(
-    app_id: int, filter_type: str, language: str, limit: int | None, unique_store: dict, disable_early_stopping: bool = False
+    app_id: int,
+    filter_type: str,
+    language: str,
+    limit: int | None,
+    unique_store: dict,
+    disable_early_stopping: bool = False,
 ) -> None:
     """
     Helper function to handle pagination and deduplication.
@@ -134,7 +147,9 @@ def fetch_batch(
     fetched_in_batch = 0
     retry_count = 0
 
-    logger.info(f"---Starting batch fetch for filter '{filter_type}' with limit={limit}")
+    logger.info(
+        f"---Starting batch fetch for filter '{filter_type}' with limit={limit}"
+    )
 
     while limit is None or fetched_in_batch < limit:
         num_per_page = 100 if limit is None else min(100, limit - fetched_in_batch)
@@ -181,7 +196,9 @@ def fetch_batch(
                 batch_new_count += 1
 
         if len(reviews) > 0 and batch_new_count == 0 and not disable_early_stopping:
-            logger.info(f"---Batch returned {len(reviews)} items, but ALL were duplicates. Retry {retry_count}/{NUM_RETRY_BEFORE_EARLY_STOPPING}.")
+            logger.info(
+                f"---Batch returned {len(reviews)} items, but ALL were duplicates. Retry {retry_count}/{NUM_RETRY_BEFORE_EARLY_STOPPING}."
+            )
             retry_count += 1
             if retry_count >= NUM_RETRY_BEFORE_EARLY_STOPPING:
                 logger.info(f"---Stopping early.")
@@ -216,7 +233,9 @@ def fetch_app_info(app_id: int) -> dict:
         data = response.json()
         app_data = data.get(str(app_id), {})
         if app_data.get("success"):
-            logger.info(f"---Successfully fetched app info for app ID: {app_id} with name: {app_data.get('data', {}).get('name', 'Unknown')}")
+            logger.info(
+                f"---Successfully fetched app info for app ID: {app_id} with name: {app_data.get('data', {}).get('name', 'Unknown')}"
+            )
             return app_data.get("data", {})
     except Exception as e:
         logger.error(f"Failed to fetch app info: {e}")

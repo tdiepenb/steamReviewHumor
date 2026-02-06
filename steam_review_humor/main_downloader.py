@@ -22,9 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    logger.info("Starting Steam Reviews Download...")
     download_steam_reviews()
-    logger.info("Download complete.")
 
 
 if __name__ == "__main__":

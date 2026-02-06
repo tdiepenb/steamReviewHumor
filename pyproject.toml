@@ -15,5 +15,6 @@ dependencies = [
     "notebook>=7.5.3",
     "numpy>=2.4.1",
     "pandas>=2.3.3",
+    "pandas-stubs>=3.0.0.260204",
     "tqdm>=4.67.1",
 ]

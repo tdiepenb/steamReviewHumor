@@ -61,14 +61,7 @@ API_TIMEOUT: float = 10.0
 ###############################
 
 # Number of days a review must exist to be considered "settled" (not too new). Reviews with 0 funny votes younger than this will be discarded.
-REVIEW_MIN_AGE_THRESHOLD_DAYS: int = 60
+REVIEW_MIN_AGE_THRESHOLD_DAYS: int = 15
 
-# Keys to keep from the app info metadata
-APP_INFO_KEYS_TO_KEEP = [
-    "name",
-    "short_description",
-    "genres",
-    "categories",
-    "metacritic",
-    "release_date",
-]
+# Minimum number of funny votes for a review to be labeled as "funny" in the binary labeling strategy
+BINARY_LABEL_FUNNY_THRESHOLD: int = 0
