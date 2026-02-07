@@ -61,10 +61,6 @@ def preprocess_steam_data_to_csv() -> None:
     df["review_timestamp_updated"] = pd.to_datetime(
         df["review_timestamp_updated"], unit="s", utc=True
     )
-    # Calculate review age in days
-    df["review_age_days"] = (
-        pd.Timestamp.now(tz=timezone.utc) - df["review_timestamp_created"]
-    ).dt.days
 
     # Filter out reviews that are too new and therefore may not have had time to accumulate funny votes
     initial_count = len(df)
@@ -152,6 +148,10 @@ def process_single_file_to_df(file_path: str) -> List | None:
             "review_language": r.get("language"),
             "review_timestamp_created": r.get("timestamp_created"),
             "review_timestamp_updated": r.get("timestamp_updated"),
+            "review_age_days": (
+                pd.Timestamp.now(tz=timezone.utc)
+                - pd.to_datetime(r.get("timestamp_created"), unit="s", utc=True)
+            ).days,
             "review_voted_up": r.get("voted_up"),
             "review_votes_up": r.get("votes_up"),
             "review_votes_funny": r.get("votes_funny"),

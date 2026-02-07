@@ -29,6 +29,7 @@ APP_IDS: list[int] = [
     1222700,  # A_Way_Out
     1774580,  # STAR_WARS_Jedi_Survivor
     1455840,  # Dorfromantik
+    837470,  # Untitled_Goose_Game
 ]
 
 
@@ -41,7 +42,7 @@ APP_IDS: list[int] = [
 REVIEW_LANGUAGE: str = "english"
 
 # Number of reviews to download per app (None for all available reviews)
-NUM_REVIEWS_PER_APP: int | None = None
+NUM_REVIEWS_PER_APP: int | None = 50000
 
 # Disable early stopping for the 'recent' filter portion of the download during the Hybrid strategy when no new reviews are found in a batch. If True, the downloader will continue fetching until the portion of recent reviews are downloaded or the API limit is reached. If False, the downloader will stop early after a set number of retries when no new reviews are found. Set this to true for older games as the 'all' filters results may overlap significantly with 'recent' reviews.
 DISABLE_EARLY_STOPPING: bool = True
@@ -61,7 +62,7 @@ API_TIMEOUT: float = 10.0
 ###############################
 
 # Number of days a review must exist to be considered "settled" (not too new). Reviews with 0 funny votes younger than this will be discarded.
-REVIEW_MIN_AGE_THRESHOLD_DAYS: int = 15
+REVIEW_MIN_AGE_THRESHOLD_DAYS: int = 30
 
 # Minimum number of funny votes for a review to be labeled as "funny" in the binary labeling strategy
 BINARY_LABEL_FUNNY_THRESHOLD: int = 0
