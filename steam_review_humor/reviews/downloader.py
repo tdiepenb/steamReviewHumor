@@ -43,12 +43,24 @@ def download_steam_reviews() -> None:
         # Get App Info for app_id
         app_meta_data = fetch_app_info(app_id)
 
+        if "error" in app_meta_data:
+            logger.error(
+                f"-Skipping download for App ID {app_id} due to error fetching app info: {app_meta_data['error']}"
+            )
+            continue
+
         # Fetch Reviews for app_id
         reviews_data = fetch_reviews_for_app(
             app_id=app_id,
             review_language=REVIEW_LANGUAGE,
             num_reviews=NUM_REVIEWS_PER_APP,
         )
+
+        if not reviews_data["reviews"]:
+            logger.warning(
+                f"-No reviews found for App ID {app_id}. Skipping saving data."
+            )
+            continue
 
         data = {
             "downloaded_at": datetime.now().isoformat(),
@@ -70,7 +82,8 @@ def download_steam_reviews() -> None:
         logger.info(
             f"-Success. Saved {len(reviews_data['reviews'])} reviews + metadata."
         )
-        logger.info("Download complete.")
+
+    logger.info("Download complete.")
 
 
 def fetch_reviews_for_app(

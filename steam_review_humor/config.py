@@ -41,7 +41,7 @@ APP_IDS: list[int] = [
 REVIEW_LANGUAGE: str = "english"
 
 # Number of reviews to download per app (None for all available reviews)
-NUM_REVIEWS_PER_APP: int | None = 50000
+NUM_REVIEWS_PER_APP: int | None = None
 
 # Disable early stopping for the 'recent' filter portion of the download during the Hybrid strategy when no new reviews are found in a batch. If True, the downloader will continue fetching until the portion of recent reviews are downloaded or the API limit is reached. If False, the downloader will stop early after a set number of retries when no new reviews are found. Set this to true for older games as the 'all' filters results may overlap significantly with 'recent' reviews.
 DISABLE_EARLY_STOPPING: bool = True
