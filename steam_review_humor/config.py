@@ -65,4 +65,4 @@ API_TIMEOUT: float = 10.0
 REVIEW_MIN_AGE_THRESHOLD_DAYS: int = 30
 
 # Minimum number of funny votes for a review to be labeled as "funny" in the binary labeling strategy
-BINARY_LABEL_FUNNY_THRESHOLD: int = 0
+BINARY_LABEL_FUNNY_THRESHOLD: int = 5

@@ -2,16 +2,13 @@ import logging
 import os
 from datetime import datetime
 
-# Import the new function
-from steam_review_humor.reviews.preprocessing import preprocess_steam_data_to_csv
+from steam_review_humor.reviews.steam_to_csv_converter import steam_data_to_csv
 
-# Create log directory if it doesn't exist
-log_dir = "log/preprocessing"
+log_dir = "log/steam_to_csv_converter"
 os.makedirs(log_dir, exist_ok=True)
 
-# Create timestamped log filename
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-log_filename = os.path.join(log_dir, f"steam_reviews_preprocessing_{timestamp}.log")
+log_filename = os.path.join(log_dir, f"steam_reviews_to_csv_{timestamp}.log")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    preprocess_steam_data_to_csv()
+    steam_data_to_csv()
 
 
 if __name__ == "__main__":

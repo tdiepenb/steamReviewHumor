@@ -23,7 +23,7 @@ PROCESSED_DIR = os.path.join(DATA_DIR, "preprocessed")
 logger = logging.getLogger(__name__)
 
 
-def preprocess_steam_data_to_csv() -> None:
+def steam_data_to_csv() -> None:
     logger.info("Starting preprocessing of Steam review data...")
     os.makedirs(PROCESSED_DIR, exist_ok=True)
     json_files = glob.glob(os.path.join(RAW_DIR, "app_*.json"))
@@ -53,6 +53,7 @@ def preprocess_steam_data_to_csv() -> None:
     )
 
     df = pd.DataFrame(all_reviews)
+    
 
     # convert unix timestamps to datetime
     df["review_timestamp_created"] = pd.to_datetime(
@@ -69,6 +70,23 @@ def preprocess_steam_data_to_csv() -> None:
     logger.info(
         f"Filtered out {initial_count - filtered_count} reviews that were younger than {REVIEW_MIN_AGE_THRESHOLD_DAYS} days old. Remaining reviews: {filtered_count}"
     )
+
+    # Filter out reviews with no text
+    initial_count_before_text = len(df)
+    reviews_no_text = df[~df["review_text_cleaned"].apply(lambda x: isinstance(x, str) and len(x) > 0)]
+    
+    if not reviews_no_text.empty:
+        dropped_ids = reviews_no_text["review_id"].tolist()
+        logger.info(
+            f"Filtered out {len(reviews_no_text)} reviews with no text content. "
+            f"Dropped review IDs: {dropped_ids}"
+        )
+    
+    df = df[
+        (df["review_text_cleaned"].apply(lambda x: isinstance(x, str) and len(x) > 0))
+    ]
+    
+    logger.info(f"Remaining reviews after text filter: {len(df)}")
 
     if df.empty:
         logger.warning(
@@ -190,9 +208,9 @@ def clean_text(text: str) -> str:
     """
     if not isinstance(text, str):
         return ""
-    # Remove tags like [b], [/b], [h1], [url=...]
-    # Pattern explanation: \[.*?\] matches anything inside brackets
-    text = re.sub(r"\[.*?\]", "", text)
+    # Remove only specific Steam BBCode tags like [b], [/b], [h1], etc.
+    # Avoid removing brackets with text content like "[This review was sunset by bungie]"
+    text = re.sub(r"\[/?(?:b|i|u|h[1-6]|url|img|list|olist|table|tr|td|th)\b[^\]]*\]", "", text)
     # Replace newlines with \n character
     text = re.sub(r"\n+", "\\n", text)
     # Collapse multiple spaces into single space
