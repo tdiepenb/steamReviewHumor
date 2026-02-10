@@ -53,7 +53,6 @@ def steam_data_to_csv() -> None:
     )
 
     df = pd.DataFrame(all_reviews)
-    
 
     # convert unix timestamps to datetime
     df["review_timestamp_created"] = pd.to_datetime(
@@ -73,19 +72,21 @@ def steam_data_to_csv() -> None:
 
     # Filter out reviews with no text
     initial_count_before_text = len(df)
-    reviews_no_text = df[~df["review_text_cleaned"].apply(lambda x: isinstance(x, str) and len(x) > 0)]
-    
+    reviews_no_text = df[
+        ~df["review_text_cleaned"].apply(lambda x: isinstance(x, str) and len(x) > 0)
+    ]
+
     if not reviews_no_text.empty:
         dropped_ids = reviews_no_text["review_id"].tolist()
         logger.info(
             f"Filtered out {len(reviews_no_text)} reviews with no text content. "
             f"Dropped review IDs: {dropped_ids}"
         )
-    
+
     df = df[
         (df["review_text_cleaned"].apply(lambda x: isinstance(x, str) and len(x) > 0))
     ]
-    
+
     logger.info(f"Remaining reviews after text filter: {len(df)}")
 
     if df.empty:
@@ -96,9 +97,9 @@ def steam_data_to_csv() -> None:
 
     logger.info("Labeling reviews using multiple strategies based on 'votes_funny'...")
 
-    # Binary Label (Funny if votes_funny > 0)
+    # Binary Label (Funny if votes_funny >= BINARY_LABEL_FUNNY_THRESHOLD)
     df["label_is_funny_binary"] = (
-        df["review_votes_funny"] > BINARY_LABEL_FUNNY_THRESHOLD
+        df["review_votes_funny"] >= BINARY_LABEL_FUNNY_THRESHOLD
     ).astype(int)
 
     # Min-Max Normalization of votes_funny
@@ -120,7 +121,9 @@ def steam_data_to_csv() -> None:
     df["label_funny_per_day"] = df["review_votes_funny"] / df["review_age_days"]
 
     # Categorical (Zero-Inflated Bins)
-    df["votes_funny_categorical"] = df["review_votes_funny"].apply(categorize_votes)
+    df["label_votes_funny_categorical"] = df["review_votes_funny"].apply(
+        categorize_votes
+    )
 
     logger.info(
         "Added columns label_is_funny_binary, label_funny_minmax, label_funny_log, label_funny_per_day, votes_funny_categorical to DataFrame."
@@ -152,24 +155,36 @@ def process_single_file_to_df(file_path: str) -> List | None:
         return None
 
     logger.info(
-        f"Processing {app_name} (ID: {app_id}) with {len(reviews_raw)} reviews..."
+        f"Processing {clean_app_name(app_name)} (ID: {app_id}) with {len(reviews_raw)} reviews..."
     )
 
     processed_app_reviews = []
 
     for r in reviews_raw:
         # flatten the review and author info, and combine with app info for each review
+        review_age_in_days = (
+            pd.Timestamp.now(tz=timezone.utc)
+            - pd.to_datetime(r.get("timestamp_created"), unit="s", utc=True)
+        ).days
+
+        categories = [c.get("description") for c in app_info_raw.get("categories", [])]
+
+        genres = [g.get("description") for g in app_info_raw.get("genres", [])]
+
+        categories_str = ", ".join(categories) if categories else ""
+        genres_str = ", ".join(genres) if genres else ""
+
+        review_info_text = f'{r.get("review")}\nGame: {clean_app_name(app_name)}\nRecommended: {str(r.get("voted_up"))}\nReview Age: {str(review_age_in_days)}\nDescription: {clean_text(app_info_raw.get("short_description"))}\nCategories: {categories_str}\nGenres: {genres_str}'
+
         rev = {
             # review info
             "review_id": r.get("recommendationid"),
             "review_text_cleaned": clean_text(r.get("review")),
+            "review_info_text_cleaned": clean_text(review_info_text),
             "review_language": r.get("language"),
             "review_timestamp_created": r.get("timestamp_created"),
             "review_timestamp_updated": r.get("timestamp_updated"),
-            "review_age_days": (
-                pd.Timestamp.now(tz=timezone.utc)
-                - pd.to_datetime(r.get("timestamp_created"), unit="s", utc=True)
-            ).days,
+            "review_age_days": review_age_in_days,
             "review_voted_up": r.get("voted_up"),
             "review_votes_up": r.get("votes_up"),
             "review_votes_funny": r.get("votes_funny"),
@@ -181,19 +196,15 @@ def process_single_file_to_df(file_path: str) -> List | None:
             "author_playtime_forever": r.get("author", {}).get("playtime_forever"),
             "author_playtime_at_review": r.get("author", {}).get("playtime_at_review"),
             # app info
-            "app_name": app_name,
+            "app_name": clean_app_name(app_name),
             "app_required_age": app_info_raw.get("required_age"),
             "app_is_free": app_info_raw.get("is_free"),
-            "app_short_description": app_info_raw.get("short_description"),
+            "app_short_description": clean_text(app_info_raw.get("short_description")),
             "app_developers": app_info_raw.get("developers"),
             "app_publishers": app_info_raw.get("publishers"),
             "app_metacritic_score": app_info_raw.get("metacritic", {}).get("score"),
-            "app_categories": [
-                c.get("description") for c in app_info_raw.get("categories", [])
-            ],
-            "app_genres": [
-                g.get("description") for g in app_info_raw.get("genres", [])
-            ],
+            "app_categories": categories,
+            "app_genres": genres,
             "app_recommendations": app_info_raw.get("recommendations", {}).get("total"),
             "app_release_date": app_info_raw.get("release_date", {}).get("date"),
         }
@@ -210,23 +221,50 @@ def clean_text(text: str) -> str:
         return ""
     # Remove only specific Steam BBCode tags like [b], [/b], [h1], etc.
     # Avoid removing brackets with text content like "[This review was sunset by bungie]"
-    text = re.sub(r"\[/?(?:b|i|u|h[1-6]|url|img|list|olist|table|tr|td|th)\b[^\]]*\]", "", text)
+    text = re.sub(
+        r"\[/?(?:b|i|u|h[1-6]|url|img|list|olist|table|tr|td|th)\b[^\]]*\]", "", text
+    )
     # Replace newlines with \n character
     text = re.sub(r"\n+", "\\n", text)
     # Collapse multiple spaces into single space
     text = re.sub(r" +", " ", text).strip()
+
+    # Drop placeholder values like NA/N/A
+    if text.strip().lower() in {"na", "n/a", "null", "none"}:
+        return ""
+
+    return text
+
+
+def clean_app_name(text: str) -> str:
+    """
+    Cleans the name of the Game
+    """
+
+    # removes ™ character from text
+    text = re.sub(r"™", "", text)
+    # Remove registered trademark, copyright, and other symbols
+    text = re.sub(r"[™®©℠]", "", text)
+    # Remove special punctuation that might confuse tokenizers
+    text = re.sub(r"[''" "–—…]", "", text)
+    # Normalize multiple spaces
+    text = re.sub(r"\s+", " ", text).strip()
+
+    # Drop placeholder values like NA/N/A
+    if text.strip().lower() in {"na", "n/a", "null", "none"}:
+        return ""
 
     return text
 
 
 def categorize_votes(votes):
     if votes == 0:
-        return 0  # Not Funny
+        return 0  # serious
     elif votes == 1:
-        return 1  # Slightly Funny
+        return 1  # witty
     elif votes <= 5:
-        return 2  # Moderately Funny
+        return 2  # amusing
     elif votes <= 10:
-        return 3  # Very Funny
+        return 3  # hilarious
     else:
-        return 4  # Hilarious
+        return 4  # hysterical
