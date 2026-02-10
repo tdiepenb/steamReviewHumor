@@ -18,8 +18,8 @@
         "source.organizeImports": "explicit"
     },
     "editor.wordWrap": "bounded",
-    "editor.wordWrapColumn": 100,
-    "editor.rulers": [100]
+    "editor.wordWrapColumn": 150,
+    "editor.rulers": [150]
   },
   "isort.args":["--profile", "black"],
   "editor.formatOnSave": true,
