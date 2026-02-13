@@ -13,6 +13,7 @@ import pandas as pd
 from steam_review_humor.config import (
     BINARY_LABEL_FUNNY_THRESHOLD,
     DATA_DIR,
+    MAX_FUNNY_VOTES_FOR_MINMAX_LABEL,
     REVIEW_MIN_AGE_THRESHOLD_DAYS,
 )
 
@@ -102,31 +103,47 @@ def steam_data_to_csv() -> None:
         df["review_votes_funny"] >= BINARY_LABEL_FUNNY_THRESHOLD
     ).astype(int)
 
-    # Min-Max Normalization of votes_funny
-    min_funny = df["review_votes_funny"].min()
-    max_funny = df["review_votes_funny"].max()
-    if max_funny > min_funny:
-        df["label_funny_minmax"] = (df["review_votes_funny"] - min_funny) / (
-            max_funny - min_funny
+    # Min-Max normalization of votes_funny
+    if MAX_FUNNY_VOTES_FOR_MINMAX_LABEL is not None:
+        logger.info(
+            f"Capping funny votes for min-max normalization at {MAX_FUNNY_VOTES_FOR_MINMAX_LABEL}. "
+            f"Reviews with {MAX_FUNNY_VOTES_FOR_MINMAX_LABEL} or more funny votes will be treated as having {MAX_FUNNY_VOTES_FOR_MINMAX_LABEL} funny votes for the purposes of min-max normalization."
+        )
+        cap_value = MAX_FUNNY_VOTES_FOR_MINMAX_LABEL
+        df["review_votes_funny_capped_for_minmax"] = df["review_votes_funny"].apply(
+            lambda x: min(x, cap_value)
         )
     else:
-        df["label_funny_minmax"] = (
+        logger.info("Not capping funny votes for min-max normalization.")
+        df["review_votes_funny_capped_for_minmax"] = df["review_votes_funny"]
+
+    min_funny_for_normalization = df["review_votes_funny_capped_for_minmax"].min()
+    max_funny_for_normalization = df["review_votes_funny_capped_for_minmax"].max()
+
+    if max_funny_for_normalization > min_funny_for_normalization:
+        label_funny_minmax = (
+            df["review_votes_funny_capped_for_minmax"] - min_funny_for_normalization
+        ) / (max_funny_for_normalization - min_funny_for_normalization)
+    else:
+        label_funny_minmax = (
             0.0  # If all reviews have the same number of funny votes, set to 0
         )
 
-    # Log-Scaled Funny Votes
-    df["label_funny_log"] = np.log1p(df["review_votes_funny"])
-
-    # Funny Votes Per Day (Velocity)
-    df["label_funny_per_day"] = df["review_votes_funny"] / df["review_age_days"]
-
-    # Categorical (Zero-Inflated Bins)
-    df["label_votes_funny_categorical"] = df["review_votes_funny"].apply(
-        categorize_votes
+    logger.info(
+        "Clipping and quantizing min-max normalized funny vote labels to bins 0.0-0.9"
+    )
+    # Quantize to 10 bins for prompts like "0.[MASK]" (digits 0-9 only).
+    df["label_funny_minmax"] = (
+        np.clip(np.floor(np.clip(label_funny_minmax, 0.0, 1.0) * 10), 0, 9) / 10
     )
 
+    # Categorical (Zero-Inflated Bins)
+    df["label_votes_funny_categorical"] = df[
+        "review_votes_funny_capped_for_minmax"
+    ].apply(categorize_votes)
+
     logger.info(
-        "Added columns label_is_funny_binary, label_funny_minmax, label_funny_log, label_funny_per_day, votes_funny_categorical to DataFrame."
+        "Added columns label_is_funny_binary, label_funny_minmax, label_votes_funny_categorical to DataFrame."
     )
 
     # Save to file

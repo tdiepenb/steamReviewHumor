@@ -41,7 +41,7 @@ APP_IDS: list[int] = [
 # Language for the reviews to be downloaded. Pass "all" for all languages. Check "https://partner.steamgames.com/doc/store/localization/languages" for supported languages.
 REVIEW_LANGUAGE: str = "english"
 
-# Number of reviews to download per app (None for all available reviews)
+# Max Number of reviews to download per app (None for all available reviews)
 NUM_REVIEWS_PER_APP: int | None = 50000
 
 # Disable early stopping for the 'recent' filter portion of the download during the Hybrid strategy when no new reviews are found in a batch. If True, the downloader will continue fetching until the portion of recent reviews are downloaded or the API limit is reached. If False, the downloader will stop early after a set number of retries when no new reviews are found. Set this to true for older games as the 'all' filters results may overlap significantly with 'recent' reviews.
@@ -66,3 +66,6 @@ REVIEW_MIN_AGE_THRESHOLD_DAYS: int = 30
 
 # Minimum number (>=) of funny votes for a review to be labeled as "funny" in the binary labeling strategy
 BINARY_LABEL_FUNNY_THRESHOLD: int = 1
+
+# Cap for funny votes when calculating min-max normalization to prevent reviews with extremly high funny votes from scewing the distribution. This threshold will be used as the max value for normalization, and any reviews with funny votes above this threshold will be treated as if they had this many funny votes for the min-max normalization label. Set to None to disable capping.
+MAX_FUNNY_VOTES_FOR_MINMAX_LABEL: int | None = 100

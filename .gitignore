@@ -13,5 +13,7 @@ wheels/
 log/
 data/preprocessed/
 
+# model checkpoints / artifacts
+models/*
 
 .env
