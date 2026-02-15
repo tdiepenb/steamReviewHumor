@@ -52,6 +52,19 @@ uv sync
 
 `uv sync` creates the local environment and installs dependencies from `uv.lock`.
 
+_Optional_:
+add your Hugging Face token for higher rate limits and faster model/dataset downloads during experiments.
+
+1. Copy the template file [`.example.env`](./.example.env) to `.env`
+
+2. Open `.env` and set:
+
+```dotenv
+HF_TOKEN=<your_huggingface_token>
+```
+
+This is optional and only affects the download speed for the models in the [3. Run experiments and evaluate](#3-run-experiments-and-evaluate)
+
 ### 2. Create the dataset
 
 1. Edit [steam_review_humor/config.py](./steam_review_humor/config.py) to adjust:
